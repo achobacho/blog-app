@@ -1,0 +1,12 @@
+Django>=4.2
+django-ninja
+djangorestframework
+django-environ
+psycopg2-binary
+pymongo
+redis
+django-redis
+python-jose
+Pillow
+django-tinymce
+django-mptt
