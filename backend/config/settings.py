@@ -90,6 +90,8 @@ CACHES = {
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
+AUTH_USER_MODEL = 'core.User'
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {

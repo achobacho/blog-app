@@ -1,3 +1,5 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-# Empty for now — will be filled later
+class User(AbstractUser):
+    profile_image = models.ImageField(upload_to='profiles/', blank=True, null=True)
