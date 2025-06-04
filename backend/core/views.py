@@ -3,6 +3,8 @@ from uuid import uuid4
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+
+
 def health_check(request):
     return JsonResponse({"status": "ok"})
 

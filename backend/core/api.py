@@ -1,16 +1,25 @@
+import base64
+from django.core.files.base import ContentFile
 from ninja import NinjaAPI
 from ninja.security import HttpBearer
 from django.http import HttpRequest
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth.hashers import check_password
 from core.models import User, Comment, Blog, Tag, Category, Menu
 from ninja import Router
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from core.schemas import BlogIn, BlogOut, ErrorSchema, CommentIn, CommentOut, CommentEdit, CategoryOut, TagOut, MenuOut
+from core.schemas import (BlogIn, BlogOut, ErrorSchema, CommentIn, CommentOut, CommentEdit, CategoryOut, TagOut,
+                          MenuOut, ProfileUpdateSchema, RegisterSchema, ChangePasswordSchema, ForgotPasswordSchema, ResetPasswordSchema)
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from typing import List, Optional, Dict
 from django.db.models import Q
 from ninja.pagination import paginate, PageNumberPagination
-# Restrict access to admin users
+from django.contrib.auth import get_user_model
 
 class JWTAuth(HttpBearer):
     def authenticate(self, request, token):
@@ -27,7 +36,6 @@ class AdminOnlyAuth(HttpBearer):
             return None
         user = validated_user[0]
 
-        # ✅ Enforce that the user must have the custom permission
         if user.has_perm("core.view_api_docs"):
             request.user = user
             return user
@@ -37,7 +45,7 @@ class AdminOnlyAuth(HttpBearer):
 api = NinjaAPI(
     title="Blog API",
     version="1.0.0",
-    docs_url="/docs",  # Swagger page
+    docs_url="/docs",
     csrf=False,
 )
 
@@ -52,6 +60,14 @@ comment_router = Router()
 
 @auth_router.post("/login")
 def login(request, username: str, password: str):
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return {"error": "Invalid credentials"}
+
+    if not user.is_active:
+        return {"error": "Account is not activated. Please check your email."}
+
     user = authenticate(username=username, password=password)
     if not user:
         return {"error": "Invalid credentials"}
@@ -63,16 +79,134 @@ def login(request, username: str, password: str):
     }
 
 @auth_router.post("/register")
-def register(request, username: str, password: str):
-    if User.objects.filter(username=username).exists():
+def register(request, data: RegisterSchema):
+    if User.objects.filter(username=data.username).exists():
         return {"error": "Username already exists"}
 
-    user = User.objects.create_user(username=username, password=password)
-    refresh = RefreshToken.for_user(user)
-    return {
-        "access": str(refresh.access_token),
-        "refresh": str(refresh),
-    }
+    user = User.objects.create_user(
+        username=data.username,
+        password=data.password,
+        email=data.email,
+        is_active=False
+    )
+
+    if data.profile_image:
+        try:
+            format, imgstr = data.profile_image.split(";base64,")
+            ext = format.split("/")[-1]
+            user.profile_image.save(
+                f"profile.{ext}",
+                ContentFile(base64.b64decode(imgstr)),
+                save=False
+            )
+        except Exception:
+            return {"error": "Invalid image format"}
+
+    user.save()
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    activation_link = f"http://localhost:8000/api/auth/activate/{uid}/{token}"
+
+    send_mail(
+        subject="Activate your account",
+        message=f"Click to activate: {activation_link}",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+    )
+
+    return {"success": "Check your email to activate your account."}
+
+
+@auth_router.get("/activate/{uidb64}/{token}")
+def activate_user(request, uidb64: str, token: str):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return {"error": "Invalid activation link"}
+
+    if default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save()
+        return {"message": "Account activated successfully."}
+    else:
+        return {"error": "Activation link is invalid or expired."}
+
+
+@auth_router.put("/profile", auth=JWTAuth())
+def update_profile(request, data: ProfileUpdateSchema):
+    user = request.auth
+
+    if data.first_name is not None:
+        user.first_name = data.first_name
+    if data.last_name is not None:
+        user.last_name = data.last_name
+    if data.email is not None:
+        user.email = data.email
+
+    if data.profile_image:
+        # Accept base64 string and save as image
+        format, imgstr = data.profile_image.split(";base64,")
+        ext = format.split("/")[-1]
+        user.profile_image.save(f"profile.{ext}", ContentFile(base64.b64decode(imgstr)), save=False)
+
+    user.save()
+    return {"success": True}
+
+
+@auth_router.put("/change-password", auth=JWTAuth())
+def change_password(request, data: ChangePasswordSchema):
+    user = request.auth
+
+    if not check_password(data.old_password, user.password):
+        return {"error": "Old password is incorrect"}
+
+    user.set_password(data.new_password)
+    user.save()
+    return {"success": True}
+
+
+User = get_user_model()
+
+
+@auth_router.post("/forgot-password")
+def forgot_password(request, data: ForgotPasswordSchema):
+    try:
+        user = User.objects.get(email=data.email)
+    except User.DoesNotExist:
+        return {"error": "User with this email does not exist"}
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+
+    reset_link = f"http://localhost:8000/api/auth/reset-password-confirm/{uid}/{token}"
+
+    send_mail(
+        subject="Reset your password",
+        message=f"Click the link to reset your password: {reset_link}",
+        from_email=None,
+        recipient_list=[user.email],
+    )
+
+    return {"success": "Password reset link sent to your email"}
+
+
+@auth_router.post("/reset-password-confirm/{uidb64}/{token}")
+def reset_password_confirm(request, uidb64: str, token: str, data: ResetPasswordSchema):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return {"error": "Invalid reset link"}
+
+    if not default_token_generator.check_token(user, token):
+        return {"error": "Invalid or expired token"}
+
+    user.set_password(data.new_password)
+    user.save()
+    return {"success": "Password has been reset"}
+
 
 @api.post("/blogs/", response=BlogOut, auth=JWTAuth())
 def create_blog(request, data: BlogIn):
@@ -94,6 +228,7 @@ def create_blog(request, data: BlogIn):
         is_active=blog.is_active,
         author=blog.author.username,
     )
+
 
 @api.get("/blogs/", response=List[BlogOut])
 @paginate(PageNumberPagination)
@@ -135,6 +270,7 @@ def list_blogs(
         for blog in blogs
     ]
 
+
 @api.put("/blogs/{blog_id}", response={200: BlogOut, 403: ErrorSchema}, auth=JWTAuth())
 def update_blog(request, blog_id: int, data: BlogIn):
     try:
@@ -159,6 +295,7 @@ def update_blog(request, blog_id: int, data: BlogIn):
         is_active=blog.is_active,
         author=blog.author.username,
     )
+
 
 @api.delete("/blogs/{blog_id}", response={200: Dict[str, bool], 403: ErrorSchema},auth=JWTAuth())
 def delete_blog(request, blog_id: int):
@@ -215,6 +352,7 @@ def create_comment(request, data: CommentIn):
         dislike=comment.dislike,
     )
 
+
 @api.put("/comments/{comment_id}", response={200: CommentOut, 403: ErrorSchema, 404: ErrorSchema}, auth=JWTAuth())
 def update_comment(request, comment_id: int, data: CommentEdit):
     try:
@@ -238,6 +376,7 @@ def update_comment(request, comment_id: int, data: CommentEdit):
         dislike=comment.dislike,
     )
 
+
 @api.delete("/comments/{comment_id}", response={200: Dict[str, bool], 403: ErrorSchema, 404: ErrorSchema}, auth=JWTAuth())
 def delete_comment(request, comment_id: int):
     try:
@@ -251,13 +390,16 @@ def delete_comment(request, comment_id: int):
     comment.delete()
     return {"success": True}
 
+
 @api.get("/categories/", response=List[CategoryOut])
 def get_categories(request):
     return Category.objects.all()
 
+
 @api.get("/tags/", response=List[TagOut])
 def get_tags(request):
     return Tag.objects.all()
+
 
 @api.get("/menus/", response=List[MenuOut])
 def get_menus(request):

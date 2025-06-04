@@ -1,5 +1,4 @@
 from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
 from core.models import Blog, Category, Tag, Menu, Comment, User
 from pymongo import MongoClient
 from django.conf import settings
@@ -18,7 +17,7 @@ mongo_collection = mongo_db["blogs"]
 
 @receiver(post_migrate)
 def create_api_docs_permission(sender, **kwargs):
-    User = apps.get_model('core', 'User')  # This targets your custom user model
+    User = apps.get_model('core', 'User')
     content_type = ContentType.objects.get_for_model(User)
 
     Permission.objects.get_or_create(

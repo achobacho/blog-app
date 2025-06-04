@@ -2,14 +2,18 @@ from typing import List
 from ninja import Schema
 from datetime import datetime
 from typing import Optional
+from pydantic import EmailStr
+
 
 class ErrorSchema(Schema):
     error: str
+
 
 class CommentIn(Schema):
     blog_id: int
     content: str
     parent_id: Optional[int] = None
+
 
 class CommentOut(Schema):
     id: int
@@ -19,6 +23,7 @@ class CommentOut(Schema):
     parent_id: Optional[int]
     like: int
     dislike: int
+
 
 class CommentEdit(Schema):
     content: str
@@ -30,6 +35,7 @@ class BlogIn(Schema):
     category_id: int
     tag_ids: List[int]
     is_active: bool
+
 
 class BlogOut(Schema):
     id: int
@@ -47,9 +53,11 @@ class CategoryOut(Schema):
     title: str
     parent_id: Optional[int]
 
+
 class TagOut(Schema):
     id: int
     title: str
+
 
 class MenuOut(Schema):
     id: int
@@ -57,4 +65,31 @@ class MenuOut(Schema):
     order: int
     category_id: Optional[int]
     url: Optional[str]
+
+
+class ProfileUpdateSchema(Schema):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    profile_image: Optional[str] = None
+
+
+class RegisterSchema(Schema):
+    username: str
+    password: str
+    email: EmailStr
+    profile_image: Optional[str] = None
+
+
+class ChangePasswordSchema(Schema):
+    old_password: str
+    new_password: str
+
+
+class ForgotPasswordSchema(Schema):
+    email: EmailStr
+
+
+class ResetPasswordSchema(Schema):
+    new_password: str
 

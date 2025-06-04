@@ -102,6 +102,8 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
 AUTH_USER_MODEL = 'core.User'
+DEFAULT_FROM_EMAIL = "admin@example.com"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

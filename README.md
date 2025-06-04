@@ -21,6 +21,39 @@ To allow a user to view the API documentation:
 Once granted, the user will be able to access the docs interface.
 ![img.png](img.png)
 
+## 🔐 Registration & Password Reset Guide (Development)
+
+### 🖼️ Registration (with Profile Picture)
+- The **profile picture** must be in **Base64** format.
+- Example format: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg.....'
+
+
+### 📧 Email Activation (Development Mode)
+- For development purposes, email verification is displayed in the **console**.
+- It will output a link like this: http://localhost:8000/api/auth/activate/MTc/cqwa3k-b4c1f15c523bc78f105934402074689c 
+- ✅ **Clicking this link will activate the account.**
+- ❗ Until the account is activated, **login will not work.**
+
+
+### 🔑 Forgot Password (Development Mode)
+- Password reset also returns a **console link**: 
+- http://localhost:8000/api/auth/reset-password-confirm/MTc/cqwa6m-297b8fd21e11528d5c36093d833f8c9e
+- ⚠️ This URL is **not clickable** directly because it expects a **POST** request, not GET.
+
+
+#### ✅ How to Reset Your Password:
+
+1. Copy the two parts from the URL:
+ - `uid`: `MTc`
+ - `token`: `cqwa6m-297b8fd21e11528d5c36093d833f8c9e`
+2. Open Swagger UI for the `reset-password-confirm` endpoint.
+3. Use **POST** method put two parts in parameters and provide the following in the request body:
+ {
+   "new_password": "your_new_password"
+ }
+4. 🔒 This will successfully update your password.
+
+
 
 
 

@@ -1,5 +1,6 @@
 from django.http import HttpResponseForbidden
 
+
 class RestrictSwaggerDocsMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

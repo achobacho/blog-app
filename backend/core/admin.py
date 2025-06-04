@@ -6,7 +6,6 @@ from core.thread_locals import set_admin_request_flag
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 
-
 class CustomTinyMCE(TinyMCE):
     def use_required_attribute(self, *args):
         return False
@@ -27,13 +26,11 @@ class BlogAdmin(admin.ModelAdmin):
         models.TextField: {'widget': CustomTinyMCE()},
     }
 
-    # ✅ Add this method to tag admin saves
     def save_model(self, request, obj, form, change):
         print("ADMIN edit TRIGGERED")
-        obj._from_admin = True  # This tells the signal it's from admin
+        obj._from_admin = True
         super().save_model(request, obj, form, change)
 
-    # ✅ Add this method to tag admin deletes
     def delete_model(self, request, obj):
         print("ADMIN DELETE TRIGGERED")
         obj._from_admin = True
