@@ -22,9 +22,17 @@ class JWTAuth(HttpBearer):
 
 class AdminOnlyAuth(HttpBearer):
     def authenticate(self, request: HttpRequest, token: str):
-        user = request.user
-        if user.is_authenticated and user.is_staff:
+        validated_user = JWTAuthentication().authenticate(request)
+        if not validated_user:
+            return None
+        user = validated_user[0]
+
+        # ✅ Enforce that the user must have the custom permission
+        if user.has_perm("core.view_api_docs"):
+            request.user = user
             return user
+
+        return None
 
 api = NinjaAPI(
     title="Blog API",
@@ -39,6 +47,8 @@ def ping(request):
     return {"message": "pong"}
 
 auth_router = Router()
+blog_router = Router()
+comment_router = Router()
 
 @auth_router.post("/login")
 def login(request, username: str, password: str):
@@ -255,3 +265,5 @@ def get_menus(request):
 
 
 api.add_router("/auth", auth_router)
+api.add_router("/blogs", blog_router)
+api.add_router("/comments", comment_router)

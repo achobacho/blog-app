@@ -5,6 +5,9 @@ class RestrictSwaggerDocsMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path == '/api/docs' and (not request.user.is_authenticated or not request.user.is_staff):
-            return HttpResponseForbidden("You must be an admin to view the API docs.")
+        if request.path == '/api/docs':
+            user = request.user
+            if not user.is_authenticated or not user.is_staff or not user.has_perm("core.view_api_docs"):
+                return HttpResponseForbidden("You don't have permission to view the API docs.")
         return self.get_response(request)
+

@@ -3,15 +3,19 @@ from pathlib import Path
 import environ
 from datetime import timedelta
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "AUTH_HEADER_TYPES": ("Bearer",),
-}
 
 # Load environment variables
 env = environ.Env()
 environ.Env.read_env()
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# MongoDB Settings
+MONGO_URL = env("MONGO_URL", default="mongodb://mongo:27017/")
+MONGO_DB_NAME = "blog_sync"
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -28,7 +32,6 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
