@@ -1,6 +1,12 @@
 import os
 from pathlib import Path
 import environ
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 # Load environment variables
 env = environ.Env()
@@ -30,6 +36,7 @@ INSTALLED_APPS = [
     'core',
 
     # Third-party apps
+    'filemanager',
     'tinymce',
     'mptt',
 ]
@@ -40,6 +47,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.RestrictSwaggerDocsMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
